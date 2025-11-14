@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>zipla.io – Wolf Runner</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:#05060a;
+  overflow:hidden;
+  font-family:system-ui,Arial;
+  color:white;
+}
+canvas{
+  display:block;
+  margin:auto;
+  background:#0d0f16;
+  border-radius:18px;
+  box-shadow:0 0 40px rgba(0,0,0,.6);
+}
+.ui{
+  position:absolute;
+  top:14px;
+  left:50%;
+  transform:translateX(-50%);
+  width:92%;
+  display:flex;
+  justify-content:space-between;
+  pointer-events:none;
+}
+.score, .coins{
+  font-size:18px;
+  font-weight:600;
+  color:#00e5ff;
+  text-shadow:0 0 12px #00e5ff;
+}
+.shop-btn{
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  padding:10px 16px;
+  background:#0af;
+  border-radius:8px;
+  font-weight:700;
+  cursor:pointer;
+  color:white;
+  box-shadow:0 0 18px #0af;
+}
+.shop-btn:hover{opacity:.8;}
+
+.shop{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:340px;
+  padding:20px;
+  border-radius:16px;
+  background:rgba(10,15,25,.95);
+  box-shadow:0 0 40px #00eaff80;
+  display:none;
+}
+.shop h2{
+  margin-bottom:10px;
+  font-size:22px;
+}
+.skin{
+  background:#0a111a;
+  padding:12px;
+  margin:10px 0;
+  border-radius:10px;
+  cursor:pointer;
+  border:1px solid #00eaff40;
+}
+.skin:hover{background:#0d1724;}
+</style>
+</head>
+<body>
+
+<div class="ui">
+  <div class="score">Score : 0</div>
+  <div class="coins">Coins : 0</div>
+</div>
+
+<div class="shop-btn">Boutique</div>
+
+<div class="shop">
+  <h2>Skins du Loup</h2>
+  <div class="skin" onclick="buySkin('neon')">🐺 Loup Neon – 200 coins</div>
+  <div class="skin" onclick="buySkin('shadow')">🐺 Loup Shadow – 500 coins</div>
+  <div class="skin" onclick="buySkin('gold')">🐺 Loup Or – 1000 coins</div>
+</div>
+
+<canvas id="game" width="900" height="360"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let speed=6;
+let score=0;
+let hiscore=0;
+let coins=0;
+let frame=0;
+let obstacles=[];
+let particles=[];
+let coinItems=[];
+let gameOver=false;
+let skin="default";
+
+let wolf={
+  x:90,
+  y:250,
+  w:70,
+  h:45,
+  vy:0,
+  onGround:true
+};
+
+function reset(){
+  speed=6;
+  score=0;
+  obstacles=[];
+  coinItems=[];
+  particles=[];
+  gameOver=false;
+  wolf.vy=0;
+  wolf.y=250;
+}
+
+function drawWolf(){
+  ctx.save();
+  ctx.translate(wolf.x, wolf.y);
+
+  if(skin==="default") ctx.fillStyle="#a0a0a0";
+  if(skin==="neon") ctx.fillStyle="#00eaff";
+  if(skin==="shadow") ctx.fillStyle="#111";
+  if(skin==="gold") ctx.fillStyle="#ffd700";
+
+  ctx.shadowColor=ctx.fillStyle;
+  ctx.shadowBlur=20;
+
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.lineTo(70,10);
+  ctx.lineTo(60,30);
+  ctx.lineTo(20,40);
+  ctx.lineTo(0,20);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function spawnObstacle(){
+  obstacles.push({
+    x:900,
+    y:270,
+    w:30,
+    h:60
+  });
+}
+
+function spawnCoin(){
+  coinItems.push({
+    x:900,
+    y:200+Math.random()*50,
+    r:10
+  });
+}
+
+function drawObstacle(o){
+  ctx.fillStyle="#ff004c";
+  ctx.shadowColor="#ff004c";
+  ctx.shadowBlur=15;
+  ctx.fillRect(o.x,o.y,o.w,o.h);
+}
+
+function drawCoin(cn){
+  ctx.fillStyle="#ffd900";
+  ctx.beginPath();
+  ctx.arc(cn.x,cn.y,cn.r,0,Math.PI*2);
+  ctx.fill();
+}
+
+function update(){
+  if(gameOver){
+    ctx.fillStyle="rgba(0,0,0,0.5)";
+    ctx.fillRect(0,0,900,360);
+    ctx.fillStyle="white";
+    ctx.font="30px Arial";
+    ctx.fillText("GAME OVER",330,180);
+    return;
+  }
+
+  frame++;
+  score+=0.05;
+  speed+=0.003;
+
+  ctx.clearRect(0,0,900,360);
+  ctx.fillStyle="#0d0f16";
+  ctx.fillRect(0,0,900,360);
+
+  if(frame%120===0) spawnObstacle();
+  if(frame%90===0) spawnCoin();
+
+  // Obstacles
+  for(let i=obstacles.length-1;i>=0;i--){
+    let o=obstacles[i];
+    o.x-=speed;
+    drawObstacle(o);
+    if(o.x+o.w<0) obstacles.splice(i,1);
+
+    if(wolf.x < o.x+o.w &&
+       wolf.x+wolf.w > o.x &&
+       wolf.y < o.y+o.h){
+      gameOver=true;
+    }
+  }
+
+  // Coins
+  for(let i=coinItems.length-1;i>=0;i--){
+    let cn=coinItems[i];
+    cn.x-=speed;
+    drawCoin(cn);
+    if(cn.x+cn.r<0) coinItems.splice(i,1);
+
+    // collision coin
+    if(Math.abs((wolf.x+35)-cn.x)<35 && Math.abs((wolf.y+20)-cn.y)<35){
+      coins++;
+      coinItems.splice(i,1);
+    }
+  }
+
+  // Gravity
+  wolf.vy+=0.6;
+  wolf.y+=wolf.vy;
+
+  if(wolf.y>250){
+    wolf.y=250;
+    wolf.vy=0;
+    wolf.onGround=true;
+  }
+
+  drawWolf();
+
+  document.querySelector(".score").innerText="Score : "+Math.floor(score);
+  document.querySelector(".coins").innerText="Coins : "+coins;
+
+  requestAnimationFrame(update);
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space"||e.code==="ArrowUp"){
+    if(wolf.onGround){
+      wolf.vy=-12;
+      wolf.onGround=false;
+    }
+    if(gameOver){
+      reset();
+    }
+  }
+});
+
+document.querySelector(".shop-btn").onclick=()=>{
+  document.querySelector(".shop").style.display="block";
+};
+document.querySelector(".shop").onclick=(e)=>{
+  if(e.target.classList.contains("shop")) 
+    document.querySelector(".shop").style.display="none";
+};
+
+function buySkin(type){
+  if(type==="neon" && coins>=200){
+    skin="neon"; coins-=200;
+  }
+  if(type==="shadow" && coins>=500){
+    skin="shadow"; coins-=500;
+  }
+  if(type==="gold" && coins>=1000){
+    skin="gold"; coins-=1000;
+  }
+  document.querySelector(".shop").style.display="none";
+}
+
+update();
+</script>
+</body>
+</html>

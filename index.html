@@ -2,214 +2,294 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<title>zipla.io – Wolf Runner</title>
+<title>zipla.io – Wolf Runner PRO</title>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{
-  background:#05060a;
+  background:#03040a;
+  font-family:system-ui;
   overflow:hidden;
-  font-family:system-ui,Arial;
-  color:white;
+  user-select:none;
 }
 canvas{
   display:block;
   margin:auto;
-  background:#0d0f16;
-  border-radius:18px;
-  box-shadow:0 0 40px rgba(0,0,0,.6);
+  background:#05070e;
+  border-radius:20px;
+  box-shadow:0 0 45px #00eaff60;
 }
-.ui{
+#ui{
   position:absolute;
-  top:14px;
+  top:15px;
   left:50%;
   transform:translateX(-50%);
-  width:92%;
+  width:90%;
   display:flex;
   justify-content:space-between;
-  pointer-events:none;
-}
-.score, .coins{
-  font-size:18px;
+  color:#00eaff;
+  font-size:20px;
   font-weight:600;
-  color:#00e5ff;
-  text-shadow:0 0 12px #00e5ff;
+  text-shadow:0 0 12px #00eaff;
 }
 .shop-btn{
   position:absolute;
   bottom:20px;
   right:20px;
-  padding:10px 16px;
-  background:#0af;
-  border-radius:8px;
+  padding:12px 18px;
+  background:#00eaff;
+  border-radius:10px;
   font-weight:700;
   cursor:pointer;
-  color:white;
-  box-shadow:0 0 18px #0af;
+  color:#00151a;
+  font-size:16px;
+  box-shadow:0 0 20px #00eaff;
 }
-.shop-btn:hover{opacity:.8;}
-
 .shop{
   position:absolute;
   top:50%;left:50%;
   transform:translate(-50%,-50%);
-  width:340px;
-  padding:20px;
-  border-radius:16px;
-  background:rgba(10,15,25,.95);
-  box-shadow:0 0 40px #00eaff80;
+  width:380px;
+  padding:22px;
+  background:#071018ed;
+  border-radius:18px;
+  box-shadow:0 0 40px #00eaff99;
   display:none;
-}
-.shop h2{
-  margin-bottom:10px;
-  font-size:22px;
+  color:white;
 }
 .skin{
-  background:#0a111a;
   padding:12px;
-  margin:10px 0;
-  border-radius:10px;
+  margin:8px 0;
+  border-radius:12px;
+  background:#0d1e2a;
+  border:1px solid #00eaff55;
   cursor:pointer;
-  border:1px solid #00eaff40;
 }
-.skin:hover{background:#0d1724;}
+.skin:hover{
+  background:#123043;
+}
+.title{
+  font-size:26px;
+  text-align:center;
+  margin-bottom:14px;
+}
 </style>
+
 </head>
 <body>
 
-<div class="ui">
-  <div class="score">Score : 0</div>
-  <div class="coins">Coins : 0</div>
+<div id="ui">
+  <div id="score">Score : 0</div>
+  <div id="coins">Coins : 0</div>
 </div>
 
 <div class="shop-btn">Boutique</div>
 
 <div class="shop">
-  <h2>Skins du Loup</h2>
-  <div class="skin" onclick="buySkin('neon')">🐺 Loup Neon – 200 coins</div>
-  <div class="skin" onclick="buySkin('shadow')">🐺 Loup Shadow – 500 coins</div>
-  <div class="skin" onclick="buySkin('gold')">🐺 Loup Or – 1000 coins</div>
+  <div class="title">Boutique – Skins Loup</div>
+  <div class="skin" onclick="buySkin('neon')">🐺 Loup Neon – 300</div>
+  <div class="skin" onclick="buySkin('shadow')">🐺 Loup Shadow – 600</div>
+  <div class="skin" onclick="buySkin('gold')">🐺 Loup Or – 1200</div>
 </div>
 
-<canvas id="game" width="900" height="360"></canvas>
+<canvas id="game" width="1000" height="420"></canvas>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const cvs=document.getElementById("game");
+const ctx=cvs.getContext("2d");
 
-let speed=6;
-let score=0;
-let hiscore=0;
-let coins=0;
+// GAME VARIABLES
+let speed=7;
 let frame=0;
-let obstacles=[];
-let particles=[];
-let coinItems=[];
+let score=0;
+let coins=0;
 let gameOver=false;
 let skin="default";
 
+const ground=320;
+const gravity=0.6;
+
+// WOLF OBJECT
 let wolf={
-  x:90,
-  y:250,
-  w:70,
-  h:45,
+  x:120,
+  y:ground-60,
+  w:110,
+  h:60,
   vy:0,
-  onGround:true
+  onGround:true,
+  runTick:0
 };
 
-function reset(){
-  speed=6;
-  score=0;
-  obstacles=[];
-  coinItems=[];
-  particles=[];
-  gameOver=false;
-  wolf.vy=0;
-  wolf.y=250;
+let obstacles=[];
+let coinList=[];
+let parallaxStars=[];
+let parallaxGlow=[];
+
+// PARALLAX INIT
+for(let i=0;i<200;i++){
+  parallaxStars.push({
+    x:Math.random()*1000,
+    y:Math.random()*420,
+    s:Math.random()*2,
+    color:i%5===0? "#00eaff" : "#788a99"
+  });
+}
+for(let i=0;i<40;i++){
+  parallaxGlow.push({
+    x:Math.random()*1000,
+    y:Math.random()*420,
+    r:6+Math.random()*16
+  });
 }
 
+// DRAW WOLF – PRO FUTURISTIC
 function drawWolf(){
   ctx.save();
-  ctx.translate(wolf.x, wolf.y);
+  ctx.translate(wolf.x,wolf.y);
+  
+  // glow
+  ctx.shadowBlur=25;
+  ctx.shadowColor = skin==="default" ? "#c0c0c0" :
+                    skin==="neon" ? "#00eaff" :
+                    skin==="shadow" ? "#222" :
+                    "#ffd700";
 
-  if(skin==="default") ctx.fillStyle="#a0a0a0";
-  if(skin==="neon") ctx.fillStyle="#00eaff";
-  if(skin==="shadow") ctx.fillStyle="#111";
-  if(skin==="gold") ctx.fillStyle="#ffd700";
+  let col = skin==="default" ? "#c0c0c0" :
+            skin==="neon" ? "#00eaff" :
+            skin==="shadow" ? "#0a0a0a" :
+            "#ffd700";
 
-  ctx.shadowColor=ctx.fillStyle;
-  ctx.shadowBlur=20;
+  ctx.fillStyle=col;
 
+  let t=wolf.runTick;
+  let legOffset=Math.sin(t)*12;
+
+  // BODY
   ctx.beginPath();
-  ctx.moveTo(0,0);
-  ctx.lineTo(70,10);
-  ctx.lineTo(60,30);
-  ctx.lineTo(20,40);
-  ctx.lineTo(0,20);
+  ctx.moveTo(0,20);
+  ctx.lineTo(90,0);
+  ctx.lineTo(110,20);
+  ctx.lineTo(70,40);
+  ctx.lineTo(20,45);
   ctx.closePath();
   ctx.fill();
+
+  // HEAD
+  ctx.beginPath();
+  ctx.moveTo(70,-5);
+  ctx.lineTo(110,-10);
+  ctx.lineTo(115,10);
+  ctx.lineTo(80,15);
+  ctx.closePath();
+  ctx.fill();
+
+  // EAR
+  ctx.beginPath();
+  ctx.moveTo(80,-12);
+  ctx.lineTo(95,-25);
+  ctx.lineTo(100,-10);
+  ctx.closePath();
+  ctx.fill();
+
+  // LEG 1
+  ctx.fillRect(20,45,18,30+legOffset);
+
+  // LEG 2
+  ctx.fillRect(55,45,20,30-legOffset);
 
   ctx.restore();
 }
 
+// OBSTACLE
 function spawnObstacle(){
   obstacles.push({
-    x:900,
-    y:270,
-    w:30,
+    x:1000,
+    y:ground-60,
+    w:40,
     h:60
   });
 }
 
+// COIN
 function spawnCoin(){
-  coinItems.push({
-    x:900,
-    y:200+Math.random()*50,
-    r:10
+  coinList.push({
+    x:1000,
+    y:180+Math.random()*120,
+    r:12
   });
 }
 
 function drawObstacle(o){
   ctx.fillStyle="#ff004c";
-  ctx.shadowColor="#ff004c";
   ctx.shadowBlur=15;
+  ctx.shadowColor="#ff004c";
   ctx.fillRect(o.x,o.y,o.w,o.h);
 }
 
-function drawCoin(cn){
-  ctx.fillStyle="#ffd900";
+function drawCoin(c){
+  ctx.fillStyle="#ffd700";
+  ctx.shadowBlur=18;
+  ctx.shadowColor="#ffd700";
   ctx.beginPath();
-  ctx.arc(cn.x,cn.y,cn.r,0,Math.PI*2);
+  ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
   ctx.fill();
+}
+
+function drawParallax(){
+  parallaxStars.forEach(s=>{
+    s.x-=speed*0.02;
+    if(s.x<0) s.x=1000;
+    ctx.fillStyle=s.color;
+    ctx.fillRect(s.x,s.y,s.s,s.s);
+  });
+
+  parallaxGlow.forEach(g=>{
+    g.x-=speed*0.04;
+    if(g.x<-20) g.x=1020;
+    ctx.fillStyle="#00eaff20";
+    ctx.beginPath();
+    ctx.arc(g.x,g.y,g.r,0,Math.PI*2);
+    ctx.fill();
+  });
 }
 
 function update(){
   if(gameOver){
-    ctx.fillStyle="rgba(0,0,0,0.5)";
-    ctx.fillRect(0,0,900,360);
-    ctx.fillStyle="white";
-    ctx.font="30px Arial";
-    ctx.fillText("GAME OVER",330,180);
+    ctx.fillStyle="rgba(0,0,0,0.55)";
+    ctx.fillRect(0,0,1000,420);
+    ctx.fillStyle="#fff";
+    ctx.font="40px system-ui";
+    ctx.fillText("GAME OVER",400,200);
     return;
   }
 
   frame++;
-  score+=0.05;
-  speed+=0.003;
+  speed+=0.002;
+  score+=0.08;
+  wolf.runTick+=0.25;
 
-  ctx.clearRect(0,0,900,360);
-  ctx.fillStyle="#0d0f16";
-  ctx.fillRect(0,0,900,360);
+  ctx.clearRect(0,0,1000,420);
 
-  if(frame%120===0) spawnObstacle();
-  if(frame%90===0) spawnCoin();
+  // background
+  drawParallax();
 
-  // Obstacles
+  // ground line
+  ctx.fillStyle="#0af";
+  ctx.shadowBlur=0;
+  ctx.fillRect(0,ground,1000,4);
+
+  // SPAWN
+  if(frame%85===0) spawnObstacle();
+  if(frame%55===0) spawnCoin();
+
+  // UPDATE OBSTACLES
   for(let i=obstacles.length-1;i>=0;i--){
     let o=obstacles[i];
     o.x-=speed;
     drawObstacle(o);
     if(o.x+o.w<0) obstacles.splice(i,1);
 
+    // COLLISION
     if(wolf.x < o.x+o.w &&
        wolf.x+wolf.w > o.x &&
        wolf.y < o.y+o.h){
@@ -217,72 +297,60 @@ function update(){
     }
   }
 
-  // Coins
-  for(let i=coinItems.length-1;i>=0;i--){
-    let cn=coinItems[i];
-    cn.x-=speed;
-    drawCoin(cn);
-    if(cn.x+cn.r<0) coinItems.splice(i,1);
+  // UPDATE COINS
+  for(let i=coinList.length-1;i>=0;i--){
+    let c=coinList[i];
+    c.x-=speed;
+    drawCoin(c);
+    if(c.x+c.r<0) coinList.splice(i,1);
 
-    // collision coin
-    if(Math.abs((wolf.x+35)-cn.x)<35 && Math.abs((wolf.y+20)-cn.y)<35){
+    if(Math.abs((wolf.x+55)-c.x)<55 && Math.abs((wolf.y+20)-c.y)<55){
       coins++;
-      coinItems.splice(i,1);
+      coinList.splice(i,1);
     }
   }
 
-  // Gravity
-  wolf.vy+=0.6;
+  // GRAVITY
+  wolf.vy+=gravity;
   wolf.y+=wolf.vy;
-
-  if(wolf.y>250){
-    wolf.y=250;
+  if(wolf.y>ground-wolf.h){
+    wolf.y=ground-wolf.h;
     wolf.vy=0;
     wolf.onGround=true;
   }
 
   drawWolf();
 
-  document.querySelector(".score").innerText="Score : "+Math.floor(score);
-  document.querySelector(".coins").innerText="Coins : "+coins;
+  document.getElementById("score").textContent="Score : "+Math.floor(score);
+  document.getElementById("coins").textContent="Coins : "+coins;
 
   requestAnimationFrame(update);
 }
 
 document.addEventListener("keydown",e=>{
   if(e.code==="Space"||e.code==="ArrowUp"){
+    if(gameOver){location.reload();}
     if(wolf.onGround){
-      wolf.vy=-12;
+      wolf.vy=-15;
       wolf.onGround=false;
-    }
-    if(gameOver){
-      reset();
     }
   }
 });
 
+// SHOP
 document.querySelector(".shop-btn").onclick=()=>{
   document.querySelector(".shop").style.display="block";
-};
-document.querySelector(".shop").onclick=(e)=>{
-  if(e.target.classList.contains("shop")) 
-    document.querySelector(".shop").style.display="none";
-};
+}
 
 function buySkin(type){
-  if(type==="neon" && coins>=200){
-    skin="neon"; coins-=200;
-  }
-  if(type==="shadow" && coins>=500){
-    skin="shadow"; coins-=500;
-  }
-  if(type==="gold" && coins>=1000){
-    skin="gold"; coins-=1000;
-  }
+  if(type==="neon" && coins>=300){ skin="neon"; coins-=300; }
+  if(type==="shadow" && coins>=600){ skin="shadow"; coins-=600; }
+  if(type==="gold" && coins>=1200){ skin="gold"; coins-=1200; }
   document.querySelector(".shop").style.display="none";
 }
 
 update();
 </script>
+
 </body>
 </html>
